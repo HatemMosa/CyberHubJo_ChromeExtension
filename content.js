@@ -1,3 +1,4 @@
+// ── Replacement rules (Level 1) ───────────────────────────────────────────
 const REPLACEMENTS = {
   'ج': 'ح',
   'ة': 'ه',
@@ -17,18 +18,33 @@ const REPLACEMENTS = {
 
 const NO_REPLACE_AT_END = new Set(['ب', 'ت', 'ث', 'ن']);
 
-let realtimeEnabled = false;
+// ── Level 2: tatweel between connected pairs ──────────────────────────────
+const NON_CONNECTING = new Set([
+  'ا', 'أ', 'إ', 'آ', 'ٱ',
+  'و', 'ؤ',
+  'ر', 'ز',
+  'د', 'ذ',
+  'ة', 'ى',
+]);
 
-/**
- * Trigger keys: Space, Enter, and punctuation.
- * We use e.key (not keyCode) for modern browsers.
- */
+const TATWEEL = 'ـ';
+
+function isArabicLetter(ch) {
+  const c = ch.codePointAt(0);
+  return c >= 0x0600 && c <= 0x06FF;
+}
+
+// ── State ─────────────────────────────────────────────────────────────────
+let realtimeEnabled = false;
+let currentLevel    = 1;
+
 const TRIGGER_KEYS = new Set([
   ' ', 'Enter',
   '.', ',', '?', '!', ';', ':',
-  '،', '؟', '؛'
+  '،', '؟', '؛',
 ]);
 
+// ── Core helpers ──────────────────────────────────────────────────────────
 function isWordBoundary(ch) {
   return (
     ch === undefined ||
@@ -38,8 +54,7 @@ function isWordBoundary(ch) {
 }
 
 function isLastInWord(chars, index) {
-  const nextChar = chars[index + 1];
-  return isWordBoundary(nextChar);
+  return isWordBoundary(chars[index + 1]);
 }
 
 function replaceChar(ch, isLast) {
@@ -47,40 +62,59 @@ function replaceChar(ch, isLast) {
   return REPLACEMENTS[ch] || ch;
 }
 
-function replaceArabicLetters(text) {
+function applyLevel1(text) {
   const chars = Array.from(text);
   for (let i = 0; i < chars.length; i++) {
-    const ch = chars[i];
-    if (/\s/.test(ch)) continue;
-    chars[i] = replaceChar(ch, isLastInWord(chars, i));
+    if (/\s/.test(chars[i])) continue;
+    chars[i] = replaceChar(chars[i], isLastInWord(chars, i));
   }
   return chars.join('');
 }
 
+// Inserts ـ randomly between connecting Arabic letter pairs
+function applyTatweel(text) {
+  const chars = Array.from(text);
+  const result = [];
+  for (let i = 0; i < chars.length; i++) {
+    result.push(chars[i]);
+    const next = chars[i + 1];
+    if (
+      next &&
+      isArabicLetter(chars[i]) &&
+      !NON_CONNECTING.has(chars[i]) &&
+      isArabicLetter(next) &&
+      Math.random() < 0.5
+    ) {
+      const count = Math.floor(Math.random() * 3) + 1;
+      for (let j = 0; j < count; j++) result.push(TATWEEL);
+    }
+  }
+  return result.join('');
+}
+
+function processWord(word) {
+  let out = applyLevel1(word);
+  if (currentLevel === 2) out = applyTatweel(out);
+  return out;
+}
+
+// ── Editable element detection ────────────────────────────────────────────
 function isEditableElement(el) {
   if (!el) return false;
   if (el.isContentEditable) return true;
-
   const tag = el.tagName?.toLowerCase();
   if (tag === 'textarea') return true;
-
   if (tag === 'input') {
     const allowed = ['text', 'search', 'email', 'url', 'tel', 'password'];
     return allowed.includes((el.type || 'text').toLowerCase());
   }
-
   return false;
 }
 
-/**
- * Replace the word immediately BEFORE the caret in a text field.
- * This runs on keydown BEFORE the trigger char is inserted (space/punct/enter).
- */
+// ── Replace in <textarea> / <input> ──────────────────────────────────────
 function replacePreviousWordInTextField(el) {
   const start = el.selectionStart;
-  const end = el.selectionEnd;
-
-  // Only when caret is collapsed
+  const end   = el.selectionEnd;
   if (start == null || end == null || start !== end) return;
 
   const value = el.value;
@@ -88,34 +122,26 @@ function replacePreviousWordInTextField(el) {
   if (caret === 0) return;
 
   let i = caret - 1;
-
-  // If previous character is already a boundary, do nothing
   if (isWordBoundary(value[i])) return;
-
-  // Move left to find start of word
   while (i >= 0 && !isWordBoundary(value[i])) i--;
   const wordStart = i + 1;
-  const wordEnd = caret; // exclusive
+  const wordEnd   = caret;
 
   const word = value.slice(wordStart, wordEnd);
   if (!word) return;
 
-  const replaced = replaceArabicLetters(word);
+  const replaced = processWord(word);
   if (replaced === word) return;
 
+  const caretShift = replaced.length - word.length;
   el.value = value.slice(0, wordStart) + replaced + value.slice(wordEnd);
-
-  // Caret stays same index (replacements are 1 char -> 1 char)
-  el.selectionStart = caret;
-  el.selectionEnd = caret;
+  el.selectionStart = caret + caretShift;
+  el.selectionEnd   = caret + caretShift;
 
   el.dispatchEvent(new Event('input', { bubbles: true }));
 }
 
-/**
- * Contenteditable: handle the common case where caret is in a TEXT_NODE.
- * Works in many editors, but not all complex ones (e.g. Google Docs).
- */
+// ── Replace in contenteditable ────────────────────────────────────────────
 function replacePreviousWordInContentEditable() {
   const sel = window.getSelection();
   if (!sel || sel.rangeCount === 0) return;
@@ -126,43 +152,37 @@ function replacePreviousWordInContentEditable() {
   const node = range.startContainer;
   if (!node || node.nodeType !== Node.TEXT_NODE) return;
 
-  const text = node.nodeValue || '';
+  const text  = node.nodeValue || '';
   const caret = range.startOffset;
   if (caret === 0) return;
 
   let i = caret - 1;
   if (isWordBoundary(text[i])) return;
-
   while (i >= 0 && !isWordBoundary(text[i])) i--;
   const wordStart = i + 1;
-  const wordEnd = caret;
+  const wordEnd   = caret;
 
   const word = text.slice(wordStart, wordEnd);
   if (!word) return;
 
-  const replaced = replaceArabicLetters(word);
+  const replaced = processWord(word);
   if (replaced === word) return;
 
+  const caretShift = replaced.length - word.length;
   node.nodeValue = text.slice(0, wordStart) + replaced + text.slice(wordEnd);
 
-  // Restore caret
   const newRange = document.createRange();
-  newRange.setStart(node, caret);
+  newRange.setStart(node, caret + caretShift);
   newRange.collapse(true);
   sel.removeAllRanges();
   sel.addRange(newRange);
 }
 
+// ── Keydown handler ───────────────────────────────────────────────────────
 function onKeyDown(e) {
   if (!realtimeEnabled) return;
-
-  // Don’t interfere with shortcuts or special combos
   if (e.ctrlKey || e.metaKey || e.altKey) return;
-
-  // Avoid IME composition issues
   if (e.isComposing) return;
-
-  // Only trigger on our defined keys
   if (!TRIGGER_KEYS.has(e.key)) return;
 
   const el = document.activeElement;
@@ -175,22 +195,21 @@ function onKeyDown(e) {
       replacePreviousWordInTextField(el);
     }
   } catch {
-    // Never break typing
+    // Never break user typing
   }
 }
 
-// Initial load
+// ── Init ──────────────────────────────────────────────────────────────────
 (async () => {
-  const { realtimeEnabled: enabled } = await chrome.storage.sync.get({ realtimeEnabled: false });
-  realtimeEnabled = enabled;
+  const data = await chrome.storage.sync.get({ realtimeEnabled: false, level: 1 });
+  realtimeEnabled = data.realtimeEnabled;
+  currentLevel    = data.level;
 })();
 
-// Toggle sync from popup
-chrome.runtime.onMessage.addListener((msg) => {
-  if (msg?.action === 'setRealtimeEnabled') {
-    realtimeEnabled = !!msg.value;
-  }
+// ── Message listener (from popup) ─────────────────────────────────────────
+chrome.runtime.onMessage.addListener(msg => {
+  if (msg?.action === 'setRealtimeEnabled') realtimeEnabled = !!msg.value;
+  if (msg?.action === 'setLevel')           currentLevel    = msg.value || 1;
 });
 
-// Capture phase so we act early
 document.addEventListener('keydown', onKeyDown, true);

@@ -1,4 +1,3 @@
 chrome.runtime.onInstalled.addListener(() => {
-  // default OFF
-  chrome.storage.sync.set({ realtimeEnabled: false });
+  chrome.storage.sync.set({ realtimeEnabled: false, level: 1 });
 });
