@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Arabic Letter Replacer</title>
+  <style>
+    :root{
+      --bg: #0b1220;
+      --card: rgba(255,255,255,.08);
+      --card2: rgba(255,255,255,.06);
+      --stroke: rgba(255,255,255,.14);
+      --text: rgba(255,255,255,.92);
+      --muted: rgba(255,255,255,.65);
+      --muted2: rgba(255,255,255,.5);
+      --accent: #7c3aed; /* violet */
+      --accent2:#22c55e; /* green */
+      --danger:#ef4444;
+      --shadow: 0 12px 30px rgba(0,0,0,.35);
+      --radius: 16px;
+    }
+
+    *{ box-sizing:border-box; }
+
+    body{
+      margin:0;
+      width: 380px;
+      background: radial-gradient(1200px 600px at 80% 0%, rgba(124,58,237,.35), transparent 60%),
+                  radial-gradient(900px 500px at 0% 30%, rgba(34,197,94,.22), transparent 60%),
+                  var(--bg);
+      color: var(--text);
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
+    }
+
+    .wrap{
+      padding: 14px;
+    }
+
+    .header{
+      display:flex;
+      gap:10px;
+      align-items:center;
+      justify-content:space-between;
+      margin-bottom: 12px;
+    }
+
+    .title{
+      display:flex;
+      flex-direction:column;
+      gap:2px;
+    }
+
+    .title h1{
+      margin:0;
+      font-size: 15px;
+      font-weight: 800;
+      letter-spacing: .2px;
+    }
+
+    .title .sub{
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .chip{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding: 8px 10px;
+      border: 1px solid var(--stroke);
+      background: rgba(255,255,255,.06);
+      border-radius: 999px;
+      box-shadow: 0 6px 18px rgba(0,0,0,.18);
+      font-size: 12px;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    .dot{
+      width: 9px; height: 9px; border-radius: 99px;
+      background: rgba(255,255,255,.25);
+      box-shadow: 0 0 0 4px rgba(255,255,255,.06);
+    }
+
+    .dot.on{ background: var(--accent2); box-shadow: 0 0 0 4px rgba(34,197,94,.18); }
+    .dot.off{ background: rgba(255,255,255,.25); }
+
+    .card{
+      background: var(--card);
+      border: 1px solid var(--stroke);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+      margin-bottom: 12px;
+    }
+
+    .cardHead{
+      padding: 12px 12px 10px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap: 10px;
+      border-bottom: 1px solid rgba(255,255,255,.08);
+      background: linear-gradient(to bottom, rgba(255,255,255,.06), transparent);
+    }
+
+    .cardHead .label{
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .toggleRow{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap: 10px;
+      padding: 12px;
+    }
+
+    .toggleText{
+      display:flex;
+      flex-direction:column;
+      gap: 2px;
+    }
+
+    .toggleText .main{
+      font-weight: 800;
+      font-size: 13px;
+    }
+
+    .toggleText .hint{
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.35;
+    }
+
+    .switch{
+      position: relative;
+      width: 52px;
+      height: 30px;
+      flex: 0 0 auto;
+    }
+
+    .switch input{
+      opacity:0; width:0; height:0;
+    }
+
+    .slider{
+      position:absolute; inset:0;
+      background: rgba(255,255,255,.18);
+      border: 1px solid rgba(255,255,255,.22);
+      border-radius: 999px;
+      transition: .2s ease;
+      cursor:pointer;
+    }
+
+    .slider:before{
+      content:"";
+      position:absolute;
+      height: 24px; width:24px;
+      left: 3px; top: 50%;
+      transform: translateY(-50%);
+      border-radius: 999px;
+      background: rgba(255,255,255,.92);
+      transition: .2s ease;
+      box-shadow: 0 8px 18px rgba(0,0,0,.35);
+    }
+
+    .switch input:checked + .slider{
+      background: rgba(34,197,94,.28);
+      border-color: rgba(34,197,94,.45);
+    }
+
+    .switch input:checked + .slider:before{
+      transform: translate(22px, -50%);
+      background: white;
+    }
+
+    .area{
+      padding: 12px;
+      display:flex;
+      flex-direction:column;
+      gap: 10px;
+    }
+
+    .textarea{
+      width: 100%;
+      min-height: 110px;
+      resize: vertical;
+      padding: 12px 12px;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,.18);
+      background: rgba(5,10,20,.55);
+      color: var(--text);
+      outline: none;
+      font-size: 14px;
+      line-height: 1.55;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.06);
+    }
+
+    .textarea::placeholder{
+      color: rgba(255,255,255,.35);
+    }
+
+    .rowBtns{
+      display:flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .btn{
+      border: 1px solid rgba(255,255,255,.18);
+      background: rgba(255,255,255,.08);
+      color: var(--text);
+      padding: 10px 12px;
+      border-radius: 14px;
+      cursor:pointer;
+      font-weight: 800;
+      font-size: 13px;
+      transition: transform .08s ease, background .2s ease, border-color .2s ease;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      gap: 8px;
+      user-select:none;
+    }
+
+    .btn:hover{
+      background: rgba(255,255,255,.12);
+      border-color: rgba(255,255,255,.25);
+    }
+
+    .btn:active{
+      transform: translateY(1px);
+    }
+
+    .btn.primary{
+      background: linear-gradient(135deg, rgba(124,58,237,.95), rgba(124,58,237,.55));
+      border-color: rgba(124,58,237,.85);
+    }
+
+    .btn.primary:hover{
+      background: linear-gradient(135deg, rgba(124,58,237,1), rgba(124,58,237,.62));
+    }
+
+    .btn.success{
+      background: linear-gradient(135deg, rgba(34,197,94,.95), rgba(34,197,94,.55));
+      border-color: rgba(34,197,94,.75);
+    }
+
+    .btn.ghost{
+      background: transparent;
+      border-color: rgba(255,255,255,.16);
+      color: rgba(255,255,255,.78);
+    }
+
+    .stats{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap: 10px;
+      color: var(--muted);
+      font-size: 12px;
+      padding: 0 2px;
+    }
+
+    .smallNote{
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.45;
+      padding: 12px;
+      background: var(--card2);
+      border-top: 1px solid rgba(255,255,255,.08);
+    }
+
+    .footer{
+      margin-top: 10px;
+      padding: 10px 12px;
+      border-radius: 14px;
+      border: 1px dashed rgba(255,255,255,.18);
+      color: var(--muted2);
+      font-size: 12px;
+      line-height: 1.5;
+      text-align: center;
+      background: rgba(255,255,255,.04);
+    }
+
+    .footer b{ color: rgba(255,255,255,.85); }
+    .link{
+      color: rgba(255,255,255,.85);
+      text-decoration: none;
+      border-bottom: 1px solid rgba(255,255,255,.25);
+    }
+    .link:hover{ border-bottom-color: rgba(255,255,255,.55); }
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+
+    <div class="header">
+      <div class="title">
+        <h1>Arabic Letter Replacer</h1>
+        <div class="sub">Real-time typing + Manual converter</div>
+      </div>
+
+      <div class="chip" title="Real-time status">
+        <span class="dot off" id="statusDot"></span>
+        <span id="statusText">Real-time: OFF</span>
+      </div>
+    </div>
+
+    <!-- Real-time toggle card -->
+    <div class="card">
+      <div class="cardHead">
+        <div class="label">Real-time Mode</div>
+        <div style="font-size:12px;color:rgba(255,255,255,.55)">Trigger: Space</div>
+      </div>
+
+      <div class="toggleRow">
+        <div class="toggleText">
+          <div class="main">Replace as you type</div>
+          <div class="hint">After you finish a word and press <b>Space</b>, the extension replaces it automatically (with end-of-word exception applied).</div>
+        </div>
+
+        <label class="switch" aria-label="Real-time toggle">
+          <input type="checkbox" id="toggleRealtime">
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="smallNote">
+        End-of-word exception letters: <b>ب، ت، ث، ن</b>
+      </div>
+    </div>
+
+    <!-- Manual converter card -->
+    <div class="card">
+      <div class="cardHead">
+        <div class="label">Manual Converter</div>
+        <div style="font-size:12px;color:rgba(255,255,255,.55)" id="changesLabel">Changes: 0</div>
+      </div>
+
+      <div class="area">
+        <textarea class="textarea" id="inputText" placeholder="اكتب أو الصق النص هنا..."></textarea>
+
+        <div class="rowBtns">
+          <button class="btn primary" id="convertBtn">Convert</button>
+          <button class="btn success" id="copyBtn">Copy Output</button>
+          <button class="btn ghost" id="swapBtn" title="Swap input/output">Swap</button>
+          <button class="btn ghost" id="clearBtn">Clear</button>
+        </div>
+
+        <textarea class="textarea" id="outputText" placeholder="سيظهر الناتج هنا..." readonly></textarea>
+
+        <div class="stats">
+          <span>Tip: جرّب كلمات مثل: بنت ذهب</span>
+          <span id="copyStatus"></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer">
+      Developed with <b>&lt;3</b> by <b>CyberHubJo</b><br/>
+      Part of research project<br/>
+      <a class="link" href="#" id="openSite">www.CyberHubJo.com</a>
+    </div>
+
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

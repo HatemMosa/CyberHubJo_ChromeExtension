@@ -1,0 +1,22 @@
+{
+  "manifest_version": 3,
+  "name": "Arabic Letter Replacer (Real-time)",
+  "version": "2.0.0",
+  "description": "Real-time Arabic letter replacement with end-of-word exceptions.",
+  "permissions": ["activeTab", "storage"],
+  "host_permissions": ["<all_urls>"],
+  "action": {
+    "default_title": "Arabic Letter Replacer",
+    "default_popup": "popup.html"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
